@@ -270,11 +270,13 @@ const App = () => {
     );
   };
 
+  const completedCount = state.notes.filter(x => x.completed).length;
+  const totalCount = state.notes.length;
+
   return (
     <div 
       style={styles.container}
     >
-
       <Input
         onChange={onChange}
         value={state.form.name}
@@ -295,6 +297,12 @@ const App = () => {
       >
         Create Note
       </Button>
+
+      <hr/>
+        <h3>
+          { completedCount } completed / { totalCount } total
+        </h3>
+      <hr/> 
 
       <List
         loading={state.loading}
