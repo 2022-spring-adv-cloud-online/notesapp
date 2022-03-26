@@ -79,6 +79,16 @@ const reducer = (state, action) => {
         } 
       };      
 
+
+    case 'ADD_BANG':
+      return {
+        ...state
+        , notes: state.notes.map(x =>({
+          ...x 
+          , name: x === action.noteToEmphasize ? `${x.name}!` : x.name
+        }))
+      };
+
     default:
       return {
         ...state
@@ -259,6 +269,15 @@ const App = () => {
             onClick={() => updateNote(item)}
           >
             {item.completed ? 'Mark incomplete' : 'Mark complete'}
+          </p>
+          , <p
+            style={styles.p}
+            onClick={() => dispatch({
+              type: 'ADD_BANG'
+              , noteToEmphasize: item
+            })}
+          >
+            + !
           </p>
         ]}
       >
