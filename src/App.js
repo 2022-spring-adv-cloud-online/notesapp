@@ -123,7 +123,6 @@ const App = () => {
             console.log(noteData);
             const note = noteData.value.data.onCreateNote;
 
-            if (CLIENT_ID === note.clientId) return;
             dispatch({ 
               type: 'ADD_NOTE'
               , note: note 
@@ -153,11 +152,6 @@ const App = () => {
       , completed: false
       , id: uuid() 
     };
-
-    dispatch({ 
-      type: 'ADD_NOTE'
-      , note: note 
-    });
 
     dispatch({ 
       type: 'RESET_FORM' 
