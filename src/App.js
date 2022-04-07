@@ -21,9 +21,13 @@ import { listNotes } from './graphql/queries';
 import { 
   createNote as CreateNote 
   , deleteNote as DeleteNote
-  , updateNote as UpdateNote
+  , updateNote, updateNote as UpdateNote
 } from './graphql/mutations';
-import { onCreateNote } from './graphql/subscriptions';
+import { 
+  onCreateNote
+  , onDeleteNote
+  , onUpdateNote 
+} from './graphql/subscriptions';
 
 const CLIENT_ID = uuid();
 
@@ -79,6 +83,23 @@ const reducer = (state, action) => {
         } 
       };      
 
+    case 'DELETE_NOTE':
+      return {
+        ...state 
+        , notes: state.notes.filter(x => x.id !== action.noteIdToDelete)
+      };
+
+
+    case 'UPDATE_NOTE':
+      return {
+        ...state 
+        , notes: state.notes.map(x => ({
+          ...x 
+          , name: x.id === action.noteUpdated.id ? action.noteUpdated.name : x.name
+          , completed: x.id === action.noteUpdated.id ? action.noteUpdated.completed : x.completed
+        }))
+      };
+
     default:
       return {
         ...state
@@ -112,27 +133,73 @@ const App = () => {
   };
   
 
+  const subscribeToCreateNote = () => {
+    return API.graphql({
+      query: onCreateNote
+    }).subscribe({
+        next: noteData => {
+
+          console.log(noteData);
+          const noteCreated = noteData.value.data.onCreateNote;
+
+          dispatch({ 
+            type: 'ADD_NOTE'
+            , note: noteCreated 
+          });
+      }
+    });
+  };
+
+  const subscribeToDeleteNote = () => {
+    return API.graphql({
+      query: onDeleteNote
+    }).subscribe({
+        next: noteData => {
+
+          console.log(noteData);
+          const noteToDelete = noteData.value.data.onDeleteNote;
+
+          console.log(noteToDelete);
+          dispatch({
+            type: "DELETE_NOTE"
+            , noteIdToDelete: noteToDelete.id
+          });
+      }
+    });
+  };
+
+  const subscribeToUpdateNote = () => {
+    return API.graphql({
+      query: onUpdateNote
+    }).subscribe({
+        next: noteData => {
+
+          console.log(noteData);
+          const noteUpdated = noteData.value.data.onUpdateNote;
+          
+          dispatch({ 
+            type: 'UPDATE_NOTE'
+            , noteUpdated: noteUpdated 
+          });
+      }
+    });
+  };
+
   useEffect(
     () => {
+
       fetchNotes();
     
-      const subscription = API.graphql({
-        query: onCreateNote
-      }).subscribe({
-          next: noteData => {
-            console.log(noteData);
-            const note = noteData.value.data.onCreateNote;
-
-            if (CLIENT_ID === note.clientId) return;
-            dispatch({ 
-              type: 'ADD_NOTE'
-              , note: note 
-            });
-        }
-      });
+      const createSubscription = subscribeToCreateNote();
+      const deleteSubscription = subscribeToDeleteNote();
+      const updateSubscription = subscribeToUpdateNote();
       
       // Pass a clean-up function to React.
-      return () => subscription.unsubscribe();
+      return () => {
+        createSubscription.unsubscribe();
+        deleteSubscription.unsubscribe();
+        updateSubscription.unsubscribe();
+      }
     }
     , []
   );
@@ -153,11 +220,6 @@ const App = () => {
       , completed: false
       , id: uuid() 
     };
-
-    dispatch({ 
-      type: 'ADD_NOTE'
-      , note: note 
-    });
 
     dispatch({ 
       type: 'RESET_FORM' 
@@ -181,13 +243,6 @@ const App = () => {
 
   const deleteNote = async (noteToDelete) => {
 
-    // Optimistically update state and screen.
-    dispatch({
-      type: "SET_NOTES"
-      , notes: state.notes.filter(x => x !== noteToDelete)
-    });
-
-    // Then do the delete via GraphQL mutation.
     try {
       await API.graphql({
         query: DeleteNote
@@ -207,16 +262,6 @@ const App = () => {
   
   const updateNote = async (noteToUpdate) => {
 
-    // Update the state and display optimistically.
-    dispatch({
-      type: "SET_NOTES"
-      , notes: state.notes.map(x => ({
-        ...x
-        , completed: x === noteToUpdate ? !x.completed : x.completed
-      }))
-    });
-
-    // Then call the backend.
     try {
       await API.graphql({
         query: UpdateNote
